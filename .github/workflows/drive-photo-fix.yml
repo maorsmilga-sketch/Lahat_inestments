@@ -1,0 +1,57 @@
+name: Install Drive-first property photo saving
+on:
+  push:
+    paths:
+      - '.github/workflows/drive-photo-fix.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch only property photo save function
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          start=s.find('async function saveProperty(){')
+          end=s.find('function renderProperties(){',start)
+          assert start>=0 and end>start,'Expected property function not found; refusing unsafe change'
+          new="""async function saveProperty(){
+            let address=$('address').value.trim();
+            if(!address){toast('חובה להזין כתובת');return}
+            let files=[...$('photo').files],old=prop(editId),id=editId||crypto.randomUUID();
+            if(files.length>6||files.some(f=>f.size>2500000)){toast('עד 6 תמונות, כל אחת עד 2.5MB');return}
+            let photos=old?.photos||[old?.photo].filter(Boolean),cloudPhotos=[...(old?.cloudPhotos||[])];
+            const sync=window.lahatDriveSync;
+            if(files.length){
+              if(!sync?.isReady?.()){toast('כדי להעלות תמונות יש להתחבר ל-Google ולהפעיל שמירה בענן');return}
+              try{
+                toast('מעלה תמונות ל-Google Drive…');
+                cloudPhotos=await sync.uploadFiles(files,id);
+                photos=await Promise.all(files.map(file=>new Promise((resolve,reject)=>{let reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)})));
+              }catch(e){console.error(e);toast('העלאת התמונות ל-Drive נכשלה. הנכס לא נשמר');return}
+            }
+            let p={id,photo:photos[0]||'',photos,cloudPhotos};
+            ['address','city','type','price','rooms','area','status','notes','ownerName','ownerPhone','reportMode'].forEach(k=>p[k]=$(k).value);
+            const previous=[...db.properties];
+            if(editId)db.properties=db.properties.map(x=>x.id===editId?p:x);else db.properties.push(p);
+            try{save()}catch(e){db.properties=previous;toast('שמירת הנכס נכשלה. הנתונים הקודמים נשמרו');return}
+            closeForm();renderProperties();toast('הנכס נשמר. הסנכרון ל-Google מתבצע ברקע');
+          }
+          """
+          s=s[:start]+new+s[end:]
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit patch
+        run: |
+          if ! git diff --quiet -- index.html; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add index.html
+            git commit -m "Upload property photos to Drive before saving property"
+            git push
+          fi
