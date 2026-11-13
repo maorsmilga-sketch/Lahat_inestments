@@ -1,21 +1,29 @@
-/* First-visit tutorial. Does not alter existing app functionality. */
+/* Lahat tutorial: small manual-launch button; no first-visit autoplay. */
 (()=>{'use strict';
-const KEY='lahat_intro_watched_v1',SRC='./lahat_tutorial_with_logo.mp4';
-if(localStorage.getItem(KEY)==='1')return;
-function done(overlay,video){try{localStorage.setItem(KEY,'1')}catch(e){}video.pause();overlay.remove()}
-async function boot(){
- if(localStorage.getItem(KEY)==='1')return;
- const check=await fetch(SRC,{method:'HEAD',cache:'no-store'}).catch(()=>null);
- if(!check?.ok||!(check.headers.get('content-type')||'').includes('video')){console.warn('Lahat tutorial video missing; intro not shown');return}
- const style=document.createElement('style');style.textContent='#lahat-intro{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box}#lahat-intro .wrap{position:relative;width:min(100%,440px);max-height:96dvh;display:flex;flex-direction:column;gap:10px;align-items:center}#lahat-intro video{width:100%;max-height:82dvh;object-fit:contain;border-radius:16px;background:#080808}#lahat-intro button{border:1px solid #c9a15c;border-radius:12px;padding:10px 19px;color:#f1d292;background:#181818;font:inherit;cursor:pointer}#lahat-intro .controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}';document.head.appendChild(style);
- const overlay=document.createElement('div');overlay.id='lahat-intro';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','סרטון הדרכה ראשוני');
- const wrap=document.createElement('div');wrap.className='wrap';const video=document.createElement('video');video.src=SRC;video.playsInline=true;video.autoplay=true;video.preload='auto';video.controls=false;video.muted=true;video.setAttribute('playsinline','');const controls=document.createElement('div');controls.className='controls';
- const sound=document.createElement('button');sound.textContent='הפעל קול';sound.onclick=()=>{video.muted=false;video.play().catch(()=>{});sound.remove()};
- const skip=document.createElement('button');skip.textContent='דלג והמשך לאפליקציה';skip.onclick=()=>done(overlay,video);
- controls.append(sound,skip);wrap.append(video,controls);overlay.append(wrap);document.body.append(overlay);
- video.addEventListener('ended',()=>done(overlay,video),{once:true});
- video.addEventListener('error',()=>{console.warn('Intro video failed');overlay.remove()},{once:true});
- try{await video.play()}catch(e){const play=document.createElement('button');play.textContent='הפעל סרטון';play.onclick=()=>{video.muted=false;video.play().catch(()=>{});play.remove()};controls.prepend(play)}
+const SRC='./lahat_tutorial_with_logo.mp4';
+function openTutorial(){
+ if(document.getElementById('lahat-tutorial-modal'))return;
+ const overlay=document.createElement('div');overlay.id='lahat-tutorial-modal';
+ overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','סרטון הדמיה');
+ overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box';
+ const wrap=document.createElement('div');wrap.style.cssText='width:min(100%,440px);max-height:96dvh;display:flex;flex-direction:column;align-items:center;gap:10px';
+ const video=document.createElement('video');video.src=SRC;video.controls=true;video.playsInline=true;video.preload='metadata';video.style.cssText='width:100%;max-height:82dvh;object-fit:contain;border-radius:14px;background:#000';
+ const close=document.createElement('button');close.type='button';close.textContent='סגור ✕';close.style.cssText='border:1px solid #c9a15c;background:#1c1c1c;color:#f1d292;border-radius:10px;padding:9px 22px;cursor:pointer;font:inherit';
+ const dismiss=()=>{video.pause();overlay.remove();document.removeEventListener('keydown',esc)};
+ const esc=e=>{if(e.key==='Escape')dismiss()};
+ close.addEventListener('click',dismiss);video.addEventListener('ended',dismiss,{once:true});
+ overlay.addEventListener('click',e=>{if(e.target===overlay)dismiss()});
+ document.addEventListener('keydown',esc);
+ wrap.append(video,close);overlay.append(wrap);document.body.append(overlay);
+ video.play().catch(()=>{/* Browser may require pressing Play in video controls. */});
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+function mount(){
+ if(document.getElementById('lahat-tutorial-trigger'))return;
+ const button=document.createElement('button');button.id='lahat-tutorial-trigger';button.type='button';
+ button.textContent='▶ סרטון הדמיה';button.setAttribute('aria-label','צפה בסרטון הדמיה');
+ button.style.cssText='position:fixed;top:calc(env(safe-area-inset-top, 0px) + 100px);left:12px;z-index:900;border:1px solid #b8924e;background:#18191d;color:#e6bd72;border-radius:18px;padding:6px 10px;font-size:11px;line-height:1.2;cursor:pointer;box-shadow:0 2px 8px #0008';
+ button.addEventListener('click',openTutorial);
+ document.body.append(button);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();
 })();
