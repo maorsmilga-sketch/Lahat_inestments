@@ -1,0 +1,34 @@
+name: Install Lahat cloud sync
+on:
+  push:
+    paths:
+      - 'cloud-sync.js'
+      - '.github/workflows/cloud-sync-install.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add optional cloud sync module
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          tag='<script src="./cloud-sync.js" defer></script>'
+          if tag not in s:
+              assert '</head>' in s
+              p.write_text(s.replace('</head>',tag+'</head>',1),encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          if ! git diff --quiet -- index.html; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add index.html
+            git commit -m "Enable optional Google cloud sync module"
+            git push
+          fi
