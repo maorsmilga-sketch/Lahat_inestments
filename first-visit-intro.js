@@ -1,6 +1,6 @@
 /* First-visit tutorial. Does not alter existing app functionality. */
 (()=>{'use strict';
-const KEY='lahat_intro_watched_v1',SRC='./lahat-tutorial.mp4';
+const KEY='lahat_intro_watched_v1',SRC='./lahat_tutorial_with_logo.mp4';
 if(localStorage.getItem(KEY)==='1')return;
 function done(overlay,video){try{localStorage.setItem(KEY,'1')}catch(e){}video.pause();overlay.remove()}
 async function boot(){
