@@ -1,0 +1,54 @@
+name: Add WhatsApp link preview
+on:
+  push:
+    paths:
+      - '.github/workflows/whatsapp-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract existing logo and insert Open Graph tags
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,base64
+          p=Path('index.html')
+          html=p.read_text(encoding='utf-8')
+          m=re.search(r"const REPORT_BRAND_LOGO\s*=\s*['\"]data:image/png;base64,([A-Za-z0-9+/=]+)['\"]",html)
+          assert m,'Existing brand logo was not found; refusing to use a different image'
+          logo=base64.b64decode(m.group(1),validate=True)
+          assert logo.startswith(b'\x89PNG\r\n\x1a\n')
+          Path('og-logo.png').write_bytes(logo)
+          base='https://maorsmilga-sketch.github.io/Lahat_inestments/'
+          tags='''<meta property="og:type" content="website">
+          <meta property="og:locale" content="he_IL">
+          <meta property="og:site_name" content="להט | תיווך נדל״ן">
+          <meta property="og:title" content="להט | תיווך נדל״ן">
+          <meta property="og:description" content="להט — ניהול נכסים ושיווק נדל״ן">
+          <meta property="og:url" content="'''+base+'''">
+          <meta property="og:image" content="'''+base+'''og-logo.png">
+          <meta property="og:image:secure_url" content="'''+base+'''og-logo.png">
+          <meta property="og:image:type" content="image/png">
+          <meta property="og:image:width" content="324">
+          <meta property="og:image:height" content="321">
+          <meta name="twitter:card" content="summary_large_image">
+          <meta name="twitter:image" content="'''+base+'''og-logo.png">'''
+          html=re.sub(r'<meta\s+property="og:[^>]+>\s*','',html)
+          html=re.sub(r'<meta\s+name="twitter:(?:card|image)"[^>]*>\s*','',html)
+          assert '</head>' in html
+          html=html.replace('</head>',tags+'\n</head>',1)
+          p.write_text(html,encoding='utf-8')
+          PY
+      - name: Commit social preview
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html og-logo.png
+          if ! git diff --cached --quiet; then
+            git commit -m "Add Open Graph WhatsApp preview using existing Lahat logo"
+            git push
+          fi
